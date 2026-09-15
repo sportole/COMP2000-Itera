@@ -39,7 +39,7 @@ Whereas if another class contains a `Character` object, that would represent a *
 
 We wanted to clarify the exact UML notation and arrow types before finalising the diagram.
 
-![[zombie simulation UML.png]]
+![[zombie simulation UML.png]](https://github.com/sportole/COMP2000-Itera/blob/main/WeeklyLogbooks/ZombieSimulationUML.svg)
 *fig: UML ver 1.*
 
 
