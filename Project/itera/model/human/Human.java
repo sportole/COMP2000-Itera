@@ -45,13 +45,13 @@ public class Human extends Character {
     }
 
     protected boolean seekResources() {
-        // Recover a building entered while roaming, even when no supplies are needed.
         for (Building building : buildings) {
             if (building.canEnter(this) && building.overlaps(getX(), getY(), size)) {
                 visitingBuilding = building;
                 break;
             }
         }
+
         if (visitingBuilding == null) {
             for (Building building : buildings) {
                 if (building.canEnter(this) && wantedResource(building) != null) {
@@ -60,27 +60,34 @@ public class Human extends Character {
                 }
             }
         }
+
         if (visitingBuilding == null) return false;
+
         Resource resource = wantedResource(visitingBuilding);
         if (resource == null && !visitingBuilding.overlaps(getX(), getY(), size)) {
             visitingBuilding = null;
             return false;
         }
+
         Vector2D destination = visitingBuilding.destination(this, resource);
         double vx = destination.getX() - position.getX();
         double vy = destination.getY() - position.getY();
         double length = Math.hypot(vx, vy);
+
         dx = length == 0 ? 0 : vx / length * Math.min(speed, length);
         dy = length == 0 ? 0 : vy / length * Math.min(speed, length);
         return true;
     }
 
-    protected boolean pursueTarget(ArrayList<Zombie> zombies) { return false; }
+    protected boolean pursueTarget(ArrayList<Zombie> zombies) {
+        return false;
+    }
 
     protected void moveTowards(Vector2D destination) {
         double vx = destination.getX() - position.getX();
         double vy = destination.getY() - position.getY();
         double length = Math.hypot(vx, vy);
+
         dx = length == 0 ? 0 : vx / length * Math.min(speed, length);
         dy = length == 0 ? 0 : vy / length * Math.min(speed, length);
     }
@@ -94,8 +101,7 @@ public class Human extends Character {
     protected ArrayList<Resource> inventory = new ArrayList<>();
 
     protected static final double NORMAL_SPEED = 3.0;
-
-    protected static final double DETECTION_RANGE = 150;
+    protected static final double DETECTION_RANGE = 300;
 
     protected boolean insideSafePoint = false;
 
@@ -112,9 +118,7 @@ public class Human extends Character {
 
     @SuppressWarnings("this-escape")
     public Human(int x, int y) {
-
         super(100, NORMAL_SPEED, x, y, 15);
-
         initialize();
     }
 
@@ -123,7 +127,6 @@ public class Human extends Character {
     }
 
     public void useItem(Resource item) {
-
         if (inventory.contains(item)) {
             item.use(this);
         }
@@ -131,31 +134,33 @@ public class Human extends Character {
 
     public void addResource(Resource resource) {
         if (!canCollect(resource)) return;
+
         inventory.removeIf(r -> r.getQuantity() <= 0);
         Resource carried = resource.inventoryCopy();
         carried.setTimeSource(timeSource);
         inventory.add(carried);
-        if (carried instanceof Food) carried.use(this);
+
+        if (carried instanceof Food) {
+            carried.use(this);
+        }
     }
 
     public void interact(Object object) {
-
         if (object instanceof Resource resource && canCollect(resource)) {
-
             addResource(resource);
-
             resource.collect();
-
         } else if (object instanceof Building building) {
-
             building.interact(this);
         }
     }
 
-    public void update(int worldWidth, int worldHeight, ArrayList<Zombie> zombies, SafePoint safePoint) {
+    public void update(
+            int worldWidth,
+            int worldHeight,
+            ArrayList<Zombie> zombies,
+            SafePoint safePoint) {
 
         if (insideSafePoint) {
-
             dx = 0;
             dy = 0;
 
@@ -163,86 +168,83 @@ public class Human extends Character {
             recoverStamina();
 
             if (health >= 80) {
-
                 insideSafePoint = false;
-
                 position.setX(safePoint.getDoorX() + 20);
-
                 position.setY(safePoint.getDoorCentreY());
-
                 chooseRandomDirection();
             }
-
             return;
         }
 
         if ((isSheltered() || health > 20) && seekResources()) {
             recoverStamina();
-        } else if (health <= 20) {
 
+        } else if (health <= 20) {
             moveTowardsSafePoint(safePoint);
 
-                double distance = position.distanceTo(new Vector2D(safePoint.getDoorX(), safePoint.getDoorCentreY()));
+            double distance = position.distanceTo(
+                new Vector2D(safePoint.getDoorX(), safePoint.getDoorCentreY())
+            );
 
             if (distance <= 25) {
-
                 insideSafePoint = true;
 
-                Vector2D restPosition = safePoint.getRandomRestPosition(random, size);
+                Vector2D restPosition =
+                    safePoint.getRandomRestPosition(random, size);
 
                 position.setX(restPosition.getX());
-
                 position.setY(restPosition.getY());
 
                 dx = 0;
                 dy = 0;
-
                 lastHealTime = now();
-
                 return;
             }
 
         } else if (pursueTarget(zombies)) {
             recoverStamina();
-        } else {
 
+        } else {
             Zombie nearestZombie = findNearestZombie(zombies);
 
             if (nearestZombie != null) {
-
-                double distance = position.distanceTo(nearestZombie.getPosition());
+                double distance =
+                    position.distanceTo(nearestZombie.getPosition());
 
                 if (distance <= DETECTION_RANGE) {
-
-                    fleeFrom(nearestZombie, worldWidth, worldHeight);
-
+                    fleeFromMultipleZombies(
+                        zombies, worldWidth, worldHeight
+                    );
                     drainStamina();
-
                 } else {
-
                     roam();
                     recoverStamina();
                 }
 
             } else {
-
                 roam();
                 recoverStamina();
             }
         }
 
         double nextX = position.getX() + dx;
-
         double nextY = position.getY() + dy;
 
-        boolean buildingBlocked = buildings.stream().anyMatch(b ->
-            b.blocksMovement(nextX, nextY, size, b.canEnter(this)));
-        if (buildingBlocked || safePoint.blocksHumanMovement(position.getX(), position.getY(), nextX, nextY, size, health <= 20)) {
+        boolean buildingBlocked = buildings.stream().anyMatch(
+            b -> b.blocksMovement(nextX, nextY, size, b.canEnter(this))
+        );
+
+        if (buildingBlocked || safePoint.blocksHumanMovement(
+                position.getX(),
+                position.getY(),
+                nextX,
+                nextY,
+                size,
+                health <= 20)) {
 
             chooseRandomDirection();
 
         } else {
-
             position.add(dx, dy);
         }
 
@@ -250,22 +252,19 @@ public class Human extends Character {
     }
 
     protected Zombie findNearestZombie(ArrayList<Zombie> zombies) {
-
         Zombie nearest = null;
-
-        double nearestDistance = Double.MAX_VALUE;
+        double closestDistance = Double.MAX_VALUE;
 
         for (Zombie zombie : zombies) {
-
             if (!zombie.isAlive()) {
                 continue;
             }
 
-            double distance = position.distanceTo(zombie.getPosition());
+            double distance =
+                position.distanceTo(zombie.getPosition());
 
-            if (distance < nearestDistance) {
-
-                nearestDistance = distance;
+            if (distance < closestDistance) {
+                closestDistance = distance;
                 nearest = zombie;
             }
         }
@@ -273,16 +272,18 @@ public class Human extends Character {
         return nearest;
     }
 
-    protected void fleeFrom(Zombie zombie, int worldWidth, int worldHeight) {
+    // Original escape method retained for compatibility.
+    protected void fleeFrom(
+            Zombie zombie,
+            int worldWidth,
+            int worldHeight) {
 
         double directionX = position.getX() - zombie.getX();
-
         double directionY = position.getY() - zombie.getY();
 
-        double distance = Math.sqrt(directionX * directionX + directionY * directionY);
+        double distance = Math.hypot(directionX, directionY);
 
         if (distance > 0) {
-
             directionX /= distance;
             directionY /= distance;
         }
@@ -305,25 +306,83 @@ public class Human extends Character {
             directionY -= 1.8;
         }
 
-        double length = Math.sqrt(directionX * directionX + directionY * directionY);
+        double length = Math.hypot(directionX, directionY);
 
         if (length > 0) {
-
-            double fleeSpeed = speed;
-
-            /* A tired human moves at half speed until stamina recovers. */
-            if (stamina <= 0) {
-                fleeSpeed = speed * 0.5;
-            }
+            double fleeSpeed =
+                stamina <= 0 ? speed * 0.5 : speed;
 
             dx = directionX / length * fleeSpeed;
-
             dy = directionY / length * fleeSpeed;
         }
     }
 
-    protected void drainStamina() {
+    // Smart Escape AI: considers all nearby zombies.
+    protected void fleeFromMultipleZombies(
+            ArrayList<Zombie> zombies,
+            int worldWidth,
+            int worldHeight) {
 
+        double escapeX = 0;
+        double escapeY = 0;
+
+        for (Zombie zombie : zombies) {
+            if (!zombie.isAlive()) {
+                continue;
+            }
+
+            double differenceX =
+                position.getX() - zombie.getX();
+
+            double differenceY =
+                position.getY() - zombie.getY();
+
+            double distance =
+                Math.hypot(differenceX, differenceY);
+
+            if (distance > 0 && distance <= DETECTION_RANGE) {
+
+                // Closer zombies have greater influence.
+                double weight = 1.0 / (distance * distance);
+
+                escapeX += differenceX / distance * weight;
+                escapeY += differenceY / distance * weight;
+            }
+        }
+
+        // Encourage humans to stay away from world edges.
+        int margin = 60;
+
+        if (position.getX() < margin) {
+            escapeX += 0.01;
+        }
+
+        if (position.getX() > worldWidth - size - margin) {
+            escapeX -= 0.01;
+        }
+
+        if (position.getY() < margin) {
+            escapeY += 0.01;
+        }
+
+        if (position.getY() > worldHeight - size - margin) {
+            escapeY -= 0.01;
+        }
+
+        double length = Math.hypot(escapeX, escapeY);
+
+        if (length > 0) {
+            double fleeSpeed =
+                stamina <= 0 ? speed * 0.5 : speed;
+
+            dx = escapeX / length * fleeSpeed;
+            dy = escapeY / length * fleeSpeed;
+        } else {
+            chooseRandomDirection();
+        }
+    }
+
+    protected void drainStamina() {
         stamina -= STAMINA_DRAIN;
 
         if (stamina < 0) {
@@ -332,7 +391,6 @@ public class Human extends Character {
     }
 
     protected void recoverStamina() {
-
         stamina += STAMINA_RECOVERY;
 
         if (stamina > MAX_STAMINA) {
@@ -349,108 +407,88 @@ public class Human extends Character {
     }
 
     protected void moveTowardsSafePoint(SafePoint safePoint) {
+        double directionX =
+            safePoint.getDoorX() - position.getX();
 
-        double directionX = safePoint.getDoorX() - position.getX();
+        double directionY =
+            safePoint.getDoorCentreY() - position.getY();
 
-        double directionY = safePoint.getDoorCentreY() - position.getY();
-
-        double distance = Math.sqrt(directionX * directionX + directionY * directionY);
+        double distance =
+            Math.hypot(directionX, directionY);
 
         if (distance > 0) {
-
             dx = directionX / distance * speed;
-
             dy = directionY / distance * speed;
         }
     }
 
     protected void roam() {
-
         if (random.nextInt(100) < 2) {
-
             chooseRandomDirection();
         }
-
     }
 
     protected void chooseRandomDirection() {
-
         double angle = random.nextDouble() * Math.PI * 2;
 
         dx = Math.cos(angle) * speed;
-
         dy = Math.sin(angle) * speed;
     }
 
     protected void keepInsideWorld(int width, int height) {
-
         if (position.getX() < 0) {
-
             position.setX(0);
             dx = Math.abs(dx);
         }
 
         if (position.getX() > width - size) {
-
             position.setX(width - size);
-
             dx = -Math.abs(dx);
         }
 
         if (position.getY() < 0) {
-
             position.setY(0);
             dy = Math.abs(dy);
         }
 
         if (position.getY() > height - size) {
-
             position.setY(height - size);
-
             dy = -Math.abs(dy);
         }
     }
 
     /**
-     * Applies zombie damage when this human is outside the safe point and the
-     * damage cooldown has finished.
-     *
-     * @param damage the amount of health to remove
-     * @return {@code true} when the damage was applied
+     * Applies zombie damage when this human is outside the safe point
+     * and the damage cooldown has finished.
      */
     public boolean receiveZombieHit(int damage) {
-
         if (isSheltered()) {
             return false;
         }
 
-        long now = now();
+        long currentTime = now();
 
-        if (now - lastDamageTime < DAMAGE_COOLDOWN) {
-
+        if (currentTime - lastDamageTime < DAMAGE_COOLDOWN) {
             return false;
         }
 
         takeDamage(damage);
-
-        lastDamageTime = now;
+        lastDamageTime = currentTime;
 
         return true;
     }
 
     protected void healInsideSafePoint() {
+        long currentTime = now();
 
-        long now = now();
-
-        if (now - lastHealTime >= HEAL_INTERVAL) {
-
+        if (currentTime - lastHealTime >= HEAL_INTERVAL) {
             health += 10;
 
             if (health > 100) {
                 health = 100;
             }
 
-            lastHealTime = now;
+            lastHealTime = currentTime;
         }
     }
 
@@ -460,40 +498,43 @@ public class Human extends Character {
 
     @Override
     public void draw(Graphics g) {
-
         g.setColor(new Color(0, 137, 123));
-
         g.fillOval(getX(), getY(), size, size);
-
         drawHealthBar(g);
     }
 
     protected void drawHealthBar(Graphics g) {
-
         int width = 24;
         int height = 4;
 
         int x = getX() - 4;
-
         int y = getY() - 8;
 
         g.setColor(Color.RED);
-
         g.fillRect(x, y, width, height);
 
         int remaining = (int) (width * health / 100.0);
 
         g.setColor(Color.GREEN);
-
         g.fillRect(x, y, remaining, height);
     }
 
     protected void drawTypeLabel(Graphics g, String label) {
-
         g.setColor(Color.BLACK);
-
         g.setFont(new Font("Arial", Font.BOLD, 10));
-
         g.drawString(label, getX() - 5, getY() + size + 12);
     }
+    
+    /**
+     * Restore health when an automatic Healing Circle is activated.
+     * Health cannot exceed the maximum of 100.
+     */
+    public void restoreSpellHealth(int amount) {
+        if (!isAlive() || amount <= 0) {
+            return;
+        }
+
+        health = Math.min(100, health + amount);
+    }
+
 }

@@ -7,8 +7,8 @@ import java.awt.*;
 import java.util.*;
 
 public class Soldier extends Human {
-    private static final double SHOOT_RANGE = 180;
-    private static final long SHOOT_COOLDOWN = 700;
+    private static final double SHOOT_RANGE = 220;
+private static final long SHOOT_COOLDOWN = 500;
     private long lastShotTime;
     private long flashUntil;
     private int shotX;

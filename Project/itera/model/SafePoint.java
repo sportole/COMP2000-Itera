@@ -1,3 +1,4 @@
+
 package itera.model;
 
 import java.awt.*;
@@ -54,17 +55,33 @@ public class SafePoint {
 
         double centreY = objectY + objectSize / 2.0;
 
-        return centreX > x && centreX < x + width && centreY > y && centreY < y + height;
+        return centreX > x
+            && centreX < x + width
+            && centreY > y
+            && centreY < y + height;
     }
 
     public boolean wouldZombieEnter(double zombieX, double zombieY, int zombieSize) {
 
-        return zombieX + zombieSize > x && zombieX < x + width && zombieY + zombieSize > y && zombieY < y + height;
+        return zombieX + zombieSize > x
+            && zombieX < x + width
+            && zombieY + zombieSize > y
+            && zombieY < y + height;
     }
 
-    public boolean blocksHumanMovement(double currentX, double currentY, double nextX, double nextY, int humanSize, boolean allowedToEnter) {
+    public boolean blocksHumanMovement(
+            double currentX,
+            double currentY,
+            double nextX,
+            double nextY,
+            int humanSize,
+            boolean allowedToEnter) {
 
-        boolean intersects = nextX + humanSize > x && nextX < x + width && nextY + humanSize > y && nextY < y + height;
+        boolean intersects =
+            nextX + humanSize > x
+            && nextX < x + width
+            && nextY + humanSize > y
+            && nextY < y + height;
 
         if (!intersects) {
             return false;
@@ -72,12 +89,15 @@ public class SafePoint {
 
         double centreY = nextY + humanSize / 2.0;
 
-        boolean atDoor = centreY >= doorY && centreY <= doorY + doorHeight;
+        boolean atDoor =
+            centreY >= doorY
+            && centreY <= doorY + doorHeight;
 
-        boolean approachingFromRight = currentX >= x + width && nextX < currentX;
+        boolean approachingFromRight =
+            currentX >= x + width
+            && nextX < currentX;
 
         if (allowedToEnter && atDoor && approachingFromRight) {
-
             return false;
         }
 
@@ -86,42 +106,75 @@ public class SafePoint {
 
     public Vector2D getRandomRestPosition(Random random, int size) {
 
-        int restX = x + 25 + random.nextInt(width - size - 50);
+        int restX =
+            x + 25 + random.nextInt(width - size - 50);
 
-        int restY = y + 45 + random.nextInt(height - size - 65);
+        int restY =
+            y + 45 + random.nextInt(height - size - 65);
 
         return new Vector2D(restX, restY);
     }
 
     public void draw(Graphics g) {
 
-        Graphics2D g2 = (Graphics2D) g;
+        Graphics2D g2 = (Graphics2D) g.create();
 
-        g.setColor(new Color(180, 255, 180));
+        // Dark green shelter
+        g2.setColor(new Color(65, 90, 70));
+        g2.fillRect(x, y, width, height);
 
-        g.fillRect(x, y, width, height);
+        // Inner roof panel
+        g2.setColor(new Color(85, 110, 85));
+        g2.fillRect(
+            x + 12,
+            y + 12,
+            width - 24,
+            height - 24
+        );
 
-        g2.setColor(new Color(0, 110, 0));
+        // Roof details
+        g2.setColor(new Color(40, 65, 45));
+        g2.fillRect(x + 25, y + 65, 35, 25);
+        g2.fillRect(x + 120, y + 65, 35, 25);
 
+        // Shelter symbol
+        g2.setColor(Color.WHITE);
+        g2.setFont(new Font("Arial", Font.BOLD, 28));
+        g2.drawString("+", x + 80, y + 115);
+
+        // Original border with doorway gap
+        g2.setColor(new Color(25, 45, 30));
         g2.setStroke(new BasicStroke(4));
 
-        /* Draw the border with a doorway gap in the right wall. */
         g2.drawLine(x, y, x + width, y);
-
         g2.drawLine(x, y, x, y + height);
-
         g2.drawLine(x, y + height, x + width, y + height);
 
         g2.drawLine(x + width, y, x + width, doorY);
 
-        g2.drawLine(x + width, doorY + doorHeight, x + width, y + height);
+        g2.drawLine(
+            x + width,
+            doorY + doorHeight,
+            x + width,
+            y + height
+        );
 
-        g2.setStroke(new BasicStroke(1));
+        // Highlight the entrance without closing the gap
+        g2.setColor(new Color(225, 190, 95));
+        g2.setStroke(new BasicStroke(3));
 
-        g.setColor(Color.BLACK);
+        g2.drawLine(
+            x + width,
+            doorY + 5,
+            x + width,
+            doorY + doorHeight - 5
+        );
 
-        g.setFont(new Font("Arial", Font.BOLD, 18));
+        // Building name
+        g2.setColor(Color.WHITE);
+        g2.setFont(new Font("Arial", Font.BOLD, 19));
+        g2.drawString("SHELTER", x + 43, y + 35);
 
-        g.drawString("SAFE ZONE", x + 30, y + 30);
+        g2.dispose();
     }
 }

@@ -1,3 +1,4 @@
+
 package itera.model;
 
 import java.awt.*;
@@ -58,6 +59,11 @@ public abstract class Resource {
     }
 
     public boolean isNear(Character character) {
+
+        // Prevent errors when no character is provided
+        if (character == null) {
+            return false;
+        }
 
         double differenceX = character.getX() - x;
 

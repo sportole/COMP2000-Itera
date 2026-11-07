@@ -3,12 +3,32 @@ package itera.model.human;
 import itera.model.*;
 import itera.model.Character;
 import itera.model.zombie.*;
+import itera.simulation.EmergencySupplyDrop;
 import java.awt.*;
 import java.util.*;
 
 public class Medic extends Human {
+    private itera.model.human.treatment.TreatmentStrategy treatmentStrategy =
+        new itera.model.human.treatment.SoldiersFirstStrategy();
+
+    public void setTreatmentStrategy(itera.model.human.treatment.TreatmentStrategy strategy) {
+        treatmentStrategy = Objects.requireNonNull(strategy, "Treatment strategy is required");
+    }
+
+    public itera.model.human.treatment.TreatmentStrategy getTreatmentStrategy() {
+        return treatmentStrategy;
+    }
+
     private long lastHealTime;
     private long healingUntil;
+
+    // The world supplies a current snapshot each simulation tick.
+    private java.util.List<EmergencySupplyDrop> emergencySupplyDrops = java.util.List.of();
+
+    public void setEmergencySupplyDrops(java.util.List<EmergencySupplyDrop> drops) {
+        emergencySupplyDrops = java.util.List.copyOf(
+            Objects.requireNonNull(drops, "Supply drops are required"));
+    }
 
     public Medic(int x, int y) { super(x, y); }
 
@@ -45,21 +65,16 @@ public class Medic extends Human {
         if (patient != null) heal(patient);
     }
 
+    /** Select only living, wounded patients outside shelter; never treat self here. */
+    public Optional<Human> selectPatient(java.util.List<Human> candidates) {
+        return candidates.stream()
+            .filter(human -> human != this && human.isAlive())
+            .filter(human -> human.getHealth() < 100 && !human.isSheltered())
+            .min(treatmentStrategy.priorityFor(this));
+    }
+
     private Human findPatient() {
-        Human best = null;
-        double bestDistance = Double.MAX_VALUE;
-        for (Human human : companions) {
-            if (human == this || !human.isAlive() || human.getHealth() >= 100 || human.isSheltered()) continue;
-            double distance = position.distanceTo(human.getPosition());
-            boolean soldier = human instanceof Soldier;
-            boolean bestSoldier = best instanceof Soldier;
-            if (best == null || soldier && !bestSoldier
-                    || soldier == bestSoldier && distance < bestDistance) {
-                best = human;
-                bestDistance = distance;
-            }
-        }
-        return best;
+        return selectPatient(companions).orElse(null);
     }
 
     @Override
@@ -74,6 +89,27 @@ public class Medic extends Human {
             }
             return false;
         }
+
+        // Prioritise a reachable emergency drop when this medic has no kits.
+        EmergencySupplyDrop nearestDrop = null;
+        double nearestDistance = Double.MAX_VALUE;
+        for (EmergencySupplyDrop drop : emergencySupplyDrops) {
+            if (!drop.isActive(now()) || !canCollect(drop.getMedicine())) {
+                continue;
+            }
+            double distance = position.distanceTo(
+                new Vector2D(drop.getX(), drop.getY()));
+            if (distance < nearestDistance) {
+                nearestDistance = distance;
+                nearestDrop = drop;
+            }
+        }
+        if (nearestDrop != null) {
+            moveTowards(new Vector2D(nearestDrop.getX(), nearestDrop.getY()));
+            return true;
+        }
+
+        // If there is no active emergency drop, use the hospital as before.
         for (Building building : buildings) {
             if (!(building instanceof Hospital)) continue;
             Resource pickup = null;
@@ -105,20 +141,26 @@ public class Medic extends Human {
         return true;
     }
 
-    @Override
-    public void draw(Graphics g) {
-        super.draw(g);
-        drawTypeLabel(g, "M");
-        if (getMedKits() > 0) {
-            g.setColor(Color.WHITE);
-            g.fillRect(getX() + 12, getY() + 5, 9, 9);
-            g.setColor(Color.RED);
-            g.drawLine(getX() + 16, getY() + 6, getX() + 16, getY() + 12);
-            g.drawLine(getX() + 13, getY() + 9, getX() + 19, getY() + 9);
-        }
-        if (now() < healingUntil) {
-            g.setColor(Color.GREEN.darker());
-            g.drawString("+20", getX(), getY() - 12);
-        }
+ 
+ @Override
+public void draw(Graphics g) {
+    super.draw(g);
+    drawTypeLabel(g, "M");
+
+    if (getMedKits() > 0) {
+        // White background for the medical symbol
+        g.setColor(Color.WHITE);
+        g.fillRect(getX() + 12, getY() + 5, 9, 9);
+
+        // Red medical cross
+        g.setColor(Color.RED);
+        g.fillRect(getX() + 15, getY() + 6, 3, 7);
+        g.fillRect(getX() + 13, getY() + 8, 7, 3);
     }
+
+    if (now() < healingUntil) {
+        g.setColor(Color.GREEN.darker());
+        g.drawString("+20", getX(), getY() - 12);
+    }
+}
 }

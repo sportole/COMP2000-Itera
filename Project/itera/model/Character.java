@@ -1,3 +1,4 @@
+
 package itera.model;
 
 import java.awt.*;
@@ -36,6 +37,11 @@ public abstract class Character {
     }
 
     public void takeDamage(int amount) {
+
+        // Prevent zero or negative damage
+        if (amount <= 0) {
+            return;
+        }
 
         health -= amount;
 

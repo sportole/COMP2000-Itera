@@ -1,3 +1,4 @@
+
 package itera.model;
 
 public class Vector2D {
@@ -32,10 +33,6 @@ public class Vector2D {
     }
 
     public double distanceTo(Vector2D other) {
-
-        double dx = other.x - x;
-        double dy = other.y - y;
-
-        return Math.sqrt(dx * dx + dy * dy);
+        return Math.hypot(other.x - x, other.y - y);
     }
 }
